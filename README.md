@@ -30,21 +30,23 @@ This is NOT an music generator. It does not auto-compose, auto-accompany, or MAK
 The system is a pipeline with strict separation of concerns:
 
 ```
-┌──────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│  Input Layer  │───▶│ Recognition Layer │───▶│  Modeling Layer   │
+┌──────────────┐     ┌─────────────────-─┐    ┌──────────────────┐
+│  Input Layer  │───▶│ Recognition Layer │───▶│ Modeling Layer   │
 │ (Audio/MIDI)  │    │ (Pitch/Note/Chord)│    │ (Markov Engine)  │
-└──────────────┘    └──────────────────┘    └────────┬─────────┘
-                                                     │
-                              ┌───────────────────────┤
-                              ▼                       ▼
-                    ┌──────────────────┐    ┌──────────────────┐
-                    │ Visualization    │    │ Session Logger   │
-                    │ (Heatmap + Path) │    │ (JSON/MIDI/CSV)  │
-                    └────────┬─────────┘    └──────────────────┘
+└──────────────┘     └─────────────────-─┘    └────────┬─────────┘
+                                                       │
+                              ┌───────────────────────-┤
+                              ▼                        ▼
+                    ┌──────────────────┐     ┌──────────────────┐
+                    │ Visualization    │     │ Session Logger   │
+                    │ (Heatmap + Path) │     │ (JSON/MIDI/CSV)  │
+                    └────────┬─────────┘     └──────────────────┘
                              │
                              ▼
                     ┌──────────────────┐
                     │  Output Layer    │
                     │ (Instrument Mode)│
                     └──────────────────┘
+
+
 ```
