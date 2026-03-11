@@ -1,6 +1,6 @@
-# Markov Music Heatmap
+# MarkovTonnetz 
 
-**A real-time musical pattern mirror and performable probability surface for improvising musicians.**
+**A real-time musical assitance for improvising musicians.**
 
 Inspired by:
 https://www.math.utah.edu/~gustafso/s2016/2270/published-projects-2016/zhang-bopanna/zhangJie-bopannaPrathusha-MarkovChainMusicComposition.pdf
