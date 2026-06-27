@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; media-src 'self' blob:; connect-src 'self' https://gleitz.github.io; img-src 'self' data: blob:">
+<title>Veles</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tonnetz.css">
+</head>
+<body>
+
+<!-- CRT overlay — scanlines + grain + vignette over entire app -->
+<div class="crt-overlay"></div>
+
+<!-- ═══ START OVERLAY (rebuilt by _buildBootUI in app.js — retro BIOS style) ═══ -->
+<div class="start-overlay" id="startOverlay"></div>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div>
+    <h1>MARKOV TONNETZ</h1>
+    <div class="sub">THE FIRST INSTRUMENT THAT LISTENS</div>
+  </div>
+  <div class="header-right">
+    <span class="stat">Notes <b id="sN">0</b></span>
+    <span class="stat"><b id="sC">&mdash;</b></span>
+    <span class="stat" id="sKey"></span>
+    <div class="voice-ind">
+      <span class="vi vi-bass muted" id="viBass" title="Bass voice">B</span>
+      <span class="vi vi-rhythm muted" id="viRhythm" title="Rhythm voice">R</span>
+      <span class="vi vi-soloist muted" id="viSoloist" title="Soloist / Solo voice">S</span>
+      <span class="vi vi-perc muted" id="viPerc" title="Percussion voice">P</span>
+    </div>
+    <div class="tempo-disp">
+      <span id="tempoDisp">120</span>
+      <span class="conf-dot" id="tempoConf" title="Tempo confidence"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ TONNETZ ═══ -->
+<div class="canvas-wrap" id="cWrap">
+  <canvas id="cv"></canvas>
+  <div class="kb-hint">A-L keys &middot; W E T Y U O P sharps &middot; Z/X octave &middot; Space sustain &middot; MIDI auto-detected</div>
+  <div class="tri-label" id="triLabel"></div>
+</div>
+
+<!-- ═══ CONTROLS ROW 1: key / genre / LTM / BPM / time-sig ═══ -->
+<div class="controls ctrl-row1">
+  <div class="ctrl-group">
+    <select id="keySelect"></select>
+    <select id="modeSelect">
+      <option value="major">Major</option>
+      <option value="minor" selected>Minor</option>
+      <option value="dorian">Dorian</option>
+      <option value="mixolydian">Mixolydian</option>
+      <option value="blues">Blues</option>
+      <option value="pent_minor">Pent Min</option>
+      <option value="pent_major">Pent Maj</option>
+    </select>
+    <!-- Behavioral preset selector — values are legacy keys mapped to GENRE_CONFIG
+         parameter profiles. Display names describe the behavioral archetype, not a genre. -->
+    <select id="genreSelect" title="Behavioral preset — PPM weights, phrase lengths, percussion style. Lexicons loaded per-role automatically.">
+      <option value="electronic_td" selected>Sequencer &middot; Ambient</option>
+      <option value="electronic_td_curated">Sequencer &middot; Ambient (Curated)</option>
+      <option value="electronic_kw">Sequencer &middot; Motorik</option>
+      <option value="electronic_kw_curated">Sequencer &middot; Motorik (Curated)</option>
+      <option value="electronic_jmj">Atmospheric &middot; Wide</option>
+      <option value="electronic_jmj_curated">Atmospheric &middot; Wide (Curated)</option>
+      <option value="electronic_mg">Sequencer &middot; Mechanical</option>
+      <option value="electronic_no">Electronic &middot; Post-Punk</option>
+      <option value="electronic">Electronic &middot; Balanced</option>
+      <option value="electronic_curated">Electronic &middot; Balanced (Curated)</option>
+      <option value="berlin_school">Berlin School</option>
+      <option value="radiohead">Art Rock &middot; Textural</option>
+      <option value="pinkfloyd">Progressive &middot; Expansive</option>
+      <option value="thecure">Post-Punk &middot; Atmospheric</option>
+      <option value="direstraits">Blues Rock &middot; Melodic</option>
+      <option value="kingc">Prog Rock &middot; Complex</option>
+      <option value="bach">Classical &middot; Contrapuntal</option>
+      <option value="mozart">Classical &middot; Melodic</option>
+      <option value="beethoven">Classical &middot; Dramatic</option>
+      <option value="jazz">Jazz</option>
+    </select>
+  </div>
+  <div class="ctrl-group ctrl-bpm" style="flex:1;min-width:120px">
+    <!-- v9.2.0: hidden bpmInput removed — bpmSlider is the sole BPM control -->
+    <div class="bpm-inject-row">
+      <span class="bpm-inject-lbl">BPM</span>
+      <input type="range" id="bpmSlider" min="30" max="300" step="1" value="120" style="--bpmp:37%">
+      <span class="bpm-inject-val" id="bpmSliderVal">120</span>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <select id="tsSelect">
+      <option value="4/4">4/4</option>
+      <option value="3/4">3/4</option>
+      <option value="6/8">6/8</option>
+      <option value="5/4">5/4</option>
+    </select>
+  </div>
+</div>
+
+<!-- ═══ CONTROLS ROW 2: transport ═══ -->
+<div class="controls ctrl-row2">
+  <div class="ctrl-group">
+    <button class="btn btn-reset" onclick="resetAll()">Reset</button>
+    <button class="btn" id="bAuto" onclick="toggleAuto()" title="Auto-play generated phrases">&#9654;&nbsp;Auto</button>
+    <button class="btn" id="bAutoEval" onclick="toggleAutoEval()" title="Auto-evaluation mode">Eval</button>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Temp</span>
+    <input type="range" id="tempSlider" min="0" max="100" value="30">
+  </div>
+  <div class="ctrl-group" id="evalGroup" style="display:none">
+    <select id="evalPatternSelect"></select>
+    <span class="stat" id="evalStatus" style="font-size:9px;color:#c87800"></span>
+  </div>
+  <div class="ctrl-row2-spacer"></div>
+  <div class="ctrl-group no-border" style="margin-left:auto">
+  </div>
+</div>
+
+<!-- ═══ MIXER ═══ -->
+<div class="mixer">
+
+  <!-- ── Channel: You ── -->
+  <div class="mx-ch ch-you" id="strip-you">
+    <div class="mx-ch-header">
+      <span class="mx-ch-num">01</span>
+      <div class="mx-led on" id="led-you" style="background:#666;color:#666" onclick="toggleChMute('strip-you','led-you','humanVol')"></div>
+      <span class="mx-name">You</span>
+    </div>
+    <div class="mx-wv"><canvas id="wv_humanVol"></canvas></div>
+    <div class="mx-fader-row">
+      <input type="range" class="mx-fader" id="humanVol" min="0" max="100" value="80" style="--p:80%" oninput="onFaderMove(this,'fv-you')">
+      <span class="mx-fader-val" id="fv-you">80</span>
+    </div>
+    <select class="mx-inst" id="instHuman"><option value="">— default —</option></select>
+  </div>
+
+  <!-- ── Channel: Bass ── -->
+  <div class="mx-ch ch-bass" id="strip-bass">
+    <div class="mx-ch-header">
+      <span class="mx-ch-num">02</span>
+      <div class="mx-led on" id="led-bass" style="background:#22b864;color:#22b864" onclick="toggleChMute('strip-bass','led-bass','bassVol')"></div>
+      <span class="mx-name c-bass">Bass</span>
+    </div>
+    <div class="mx-wv"><canvas id="wv_bassVol"></canvas></div>
+    <div class="mx-fader-row">
+      <input type="range" class="mx-fader" id="bassVol" min="0" max="100" value="65" style="--p:65%" oninput="onFaderMove(this,'fv-bass')">
+      <span class="mx-fader-val" id="fv-bass">65</span>
+    </div>
+    <select class="mx-inst" id="instBass"><option value="">— default —</option></select>
+  </div>
+
+  <!-- ── Channel: Rhythm ── -->
+  <div class="mx-ch ch-rhythm" id="strip-rhythm">
+    <div class="mx-ch-header">
+      <span class="mx-ch-num">03</span>
+      <div class="mx-led on" id="led-rhythm" style="background:#c87800;color:#c87800" onclick="toggleChMute('strip-rhythm','led-rhythm','rhythmVol')"></div>
+      <span class="mx-name c-rhythm">Rhythm</span>
+    </div>
+    <div class="mx-wv"><canvas id="wv_rhythmVol"></canvas></div>
+    <div class="mx-fader-row">
+      <input type="range" class="mx-fader" id="rhythmVol" min="0" max="100" value="60" style="--p:60%" oninput="onFaderMove(this,'fv-rhythm')">
+      <span class="mx-fader-val" id="fv-rhythm">60</span>
+    </div>
+    <select class="mx-inst" id="instRhythm"><option value="">— default —</option></select>
+  </div>
+
+  <!-- ── Channel: Soloist ── -->
+  <div class="mx-ch ch-soloist" id="strip-solo">
+    <div class="mx-ch-header">
+      <span class="mx-ch-num">04</span>
+      <div class="mx-led on" id="led-solo" style="background:#c09820;color:#c09820" onclick="toggleChMute('strip-solo','led-solo','soloistVol')"></div>
+      <span class="mx-name c-soloist">Solo</span>
+    </div>
+    <div class="mx-wv"><canvas id="wv_soloistVol"></canvas></div>
+    <div class="mx-fader-row">
+      <input type="range" class="mx-fader" id="soloistVol" min="0" max="100" value="55" style="--p:55%" oninput="onFaderMove(this,'fv-solo')">
+      <span class="mx-fader-val" id="fv-solo">55</span>
+    </div>
+    <select class="mx-inst" id="instSoloist"><option value="">— default —</option></select>
+  </div>
+
+  <!-- ── Channel: Lead ── -->
+  <div class="mx-ch ch-lead" id="strip-lead">
+    <div class="mx-ch-header">
+      <span class="mx-ch-num">05</span>
+      <div class="mx-led on" id="led-lead" style="background:#d4b040;color:#d4b040" onclick="toggleChMute('strip-lead','led-lead','leadVol')"></div>
+      <span class="mx-name c-lead">Lead</span>
+    </div>
+    <div class="mx-wv"><canvas id="wv_leadVol"></canvas></div>
+    <div class="mx-fader-row">
+      <input type="range" class="mx-fader" id="leadVol" min="0" max="100" value="55" style="--p:55%" oninput="onFaderMove(this,'fv-lead')">
+      <span class="mx-fader-val" id="fv-lead">55</span>
+    </div>
+    <select class="mx-inst" id="instLead"><option value="">— default —</option></select>
+  </div>
+
+  <!-- ── Channel: Percussion ── -->
+  <div class="mx-ch ch-perc" id="strip-perc">
+    <div class="mx-ch-header">
+      <span class="mx-ch-num">06</span>
+      <div class="mx-led on" id="led-perc" style="background:#e04040;color:#e04040" onclick="toggleChMute('strip-perc','led-perc','percVol')"></div>
+      <span class="mx-name c-perc">Perc</span>
+    </div>
+    <div class="mx-wv"><canvas id="wv_percVol"></canvas></div>
+    <div class="mx-fader-row">
+      <input type="range" class="mx-fader" id="percVol" min="0" max="100" value="50" style="--p:50%" oninput="onFaderMove(this,'fv-perc')">
+      <span class="mx-fader-val" id="fv-perc">50</span>
+    </div>
+    <select class="mx-inst" id="instPerc">
+      <option value="808">808 Electronic</option>
+      <option value="acoustic">Acoustic Kit</option>
+      <option value="jazz_brushes">Jazz Brushes</option>
+      <option value="latin_perc">Latin Percussion</option>
+      <option value="soul_pocket">Soul Pocket</option>
+      <option value="timpani">Timpani</option>
+      <option value="maracas">Maracas</option>
+    </select>
+  </div>
+
+  <!-- ── FX Send ── -->
+  <div class="mx-panel fx-send">
+    <div class="mx-panel-hdr">FX&nbsp;Send</div>
+    <div class="mx-panel-row">
+      <span class="mx-panel-lbl">Rev</span>
+      <input type="range" id="reverbSlider" min="0" max="100" value="30" oninput="document.getElementById('pv-rev').textContent=this.value">
+      <span class="mx-panel-val" id="pv-rev">30</span>
+    </div>
+    <div class="mx-panel-row">
+      <span class="mx-panel-lbl">Sus</span>
+      <input type="range" id="sustainSlider" min="0" max="100" value="50" oninput="document.getElementById('pv-sus').textContent=this.value">
+      <span class="mx-panel-val" id="pv-sus">50</span>
+    </div>
+  </div>
+
+  <!-- ── Utility ── -->
+  <div class="mx-panel utility">
+    <div class="mx-panel-hdr">Utility</div>
+    <div class="mx-util-btns">
+      <button class="mx-util-btn ok" id="bLoadSamples" onclick="loadDefaultSamples()">Samples</button>
+      <button class="mx-util-btn" id="bPickSound" onclick="pickSoundFile()">Load&nbsp;File</button>
+    </div>
+  </div>
+
+  <!-- ── Master ── -->
+  <div class="mx-panel master">
+    <div class="mx-panel-hdr">Master</div>
+    <div class="mx-master-body">
+      <span class="mx-master-lbl">Vol</span>
+      <input type="range" id="masterVol" class="mx-master-fader" min="0" max="100" value="95"
+             oninput="document.getElementById('masterVolVal').textContent=this.value">
+      <span class="mx-master-val" id="masterVolVal">95</span>
+      <span class="mx-clip" id="clipLed">Clip</span>
+    </div>
+  </div>
+
+  <!-- hidden backward-compat IDs old code may reference -->
+  <select id="instSelect" style="display:none">
+    <option value="piano">Piano</option><option value="synth">Synth</option>
+  </select>
+</div>
+
+<!-- ═══ PATH BAR ═══ -->
+<div class="path-bar" id="pathBar">
+  <span class="path-label">PATH</span>
+  <span class="path-ph">Play to begin</span>
+</div>
+
+<!-- ═══ SCRIPTS (load order = dependency graph — DO NOT reorder) ═══ -->
+<!-- Offline render harness — no-op unless URL has ?render (must load first) -->
+<script src="render-harness.js"></script>
+<!-- 3D visualization (Three.js) -->
+<script src="lib/three-browser.js"></script>
+<script src="src/viz/timbral-space.js"></script>
+<script src="src/viz/raw-dump.js"></script>
+<!-- shared -->
+<script src="src/shared/constants.js"></script>
+<!-- sound -->
+<script src="src/sound/sound-engine.js"></script>
+<script src="src/sound/sample-loader.js"></script>
+<script src="src/sound/timbre-profile.js"></script>
+<script src="src/sound/expression-engine.js"></script>
+<!-- shared -->
+<script src="src/shared/event-bus.js"></script>
+<!-- prediction -->
+<script src="src/prediction/ppm-trie.js"></script>
+<script src="src/prediction/prediction-engine.js"></script>
+<script src="src/prediction/melodic-expectancy.js"></script>
+<!-- belief -->
+<script src="src/belief/section-tracker.js"></script>
+<!-- coordination -->
+<script src="src/coordination/octave-placement.js"></script>
+<script src="src/coordination/overlap-manager.js"></script>
+<!-- harmonic -->
+<script src="src/harmonic/harmonic-planner.js"></script>
+<script src="src/harmonic/chord-belief.js"></script>
+<script src="src/harmonic/chord-voicing.js"></script>
+<script src="src/harmonic/tension.js"></script>
+<!-- timing -->
+<script src="src/timing/tempo-engine.js"></script>
+<script src="src/timing/scheduler.js"></script>
+<script src="src/timing/temporal-scope.js"></script>
+<!-- sound -->
+<script src="src/sound/voice-player.js"></script>
+<script src="src/sound/voice-manager.js"></script>
+<script src="src/sound/timbral-evolution.js"></script>
+<!-- engine -->
+<script src="src/engine/sidecar-bridge.js"></script>
+<script src="src/engine/spectral-forwarder.js"></script>
+<!-- input -->
+<script src="src/input/input-handler.js"></script>
+<script src="src/input/gesture-classifier.js"></script>
+<!-- ownership-detector.js removed v3.8.2: archived to info/archive/ -->
+<!-- timing -->
+<script src="src/timing/bar-tracker.js"></script>
+<!-- planning -->
+<script src="src/planning/shared-loop-detector.js"></script>
+<!-- shared -->
+<script src="src/shared/assistant-shared.js"></script>
+<!-- belief -->
+<script src="src/belief/context-integrator.js"></script>
+<script src="src/belief/key-belief.js"></script>
+<script src="src/belief/mood-state.js"></script>
+<script src="src/belief/phase-coupling.js"></script>
+<script src="src/belief/belief-state.js"></script>
+<script src="src/shared/behavior-modes.js"></script>
+<script src="src/belief/dialogue-engine.js"></script>
+<!-- prediction -->
+<script src="src/prediction/phrase-generator.js"></script>
+<script src="src/prediction/motif-developer.js"></script>
+<script src="src/coordination/shared-phrase-memory.js"></script>
+<script src="src/coordination/thematic-memory.js"></script>
+<!-- planning -->
+<script src="src/planning/narrative-arc.js"></script>
+<script src="src/planning/session-ending.js"></script>
+<script src="src/planning/melodic-intent.js"></script>
+<script src="src/planning/phrase-planner.js"></script>
+<!-- assistants -->
+<script src="src/assistants/bass-assistant.js"></script>
+<script src="src/assistants/rhythm-assistant.js"></script>
+<script src="src/assistants/solo-assistant.js"></script>
+<script src="src/assistants/lead-assistant.js"></script>
+<!-- percussion -->
+<script src="src/percussion/drum-patterns.js"></script>
+<script src="src/assistants/percussion-assistant.js"></script>
+<!-- coordination -->
+<script src="src/coordination/final-coordinator.js"></script>
+<script src="src/coordination/peer-velocity.js"></script>
+<script src="src/coordination/conviction-expression.js"></script>
+<script src="src/coordination/peer-model.js"></script>
+<!-- research -->
+<script src="src/research/auto-evaluator.js"></script>
+<!-- bootstrap -->
+<script src="src/app/app.js"></script>
+<script src="src/research/research-state.js"></script>
+<script src="src/research/music-metrics.js"></script>
+<script src="src/belief/ltm.js"></script>
+<!-- ui -->
+<script src="src/ui/ui-wiring.js"></script>
+</body>
+</html>

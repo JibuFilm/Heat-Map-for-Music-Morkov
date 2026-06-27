@@ -1,0 +1,23 @@
+# ── macOS ──
+.DS_Store
+**/.DS_Store
+
+# ── Editor / IDE ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Logs / temp ──
+*.log
+.cache/
+
+# ── Node (future tooling) ──
+node_modules/
+
+# ── Local render output ──
+# Offline captures/renders are scratch artifacts, not source.
+# (render-harness.js IS tracked — it's the deterministic driver.)
+/render-out/
+*.capture.json
